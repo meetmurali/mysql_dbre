@@ -38,8 +38,8 @@ WHITELISTED_QUERIES: Dict[str, QueryTemplate] = {
     ),
     "uptime": QueryTemplate(
         name="uptime",
-        description="Get server uptime in seconds",
-        sql="SHOW GLOBAL STATUS LIKE 'Uptime'",
+        description="Get server uptime in seconds (reliable numeric value)",
+        sql="SHOW GLOBAL status LIKE 'uptime'",
     ),
     "version": QueryTemplate(
         name="version",

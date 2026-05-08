@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import ollama
+import re
 
 from backend.schemas import ChatRequest
 from config import MySQLConfig
@@ -71,6 +72,9 @@ def execute_tool(tool_name: str, tool_input: dict) -> str:
         elif tool_name == "mysql_execute_safe_query":
             query_name = tool_input.get("query_name")
             result = db_connection.execute_safe_query(query_name=query_name)
+        elif tool_name == "mysql_get_version":
+            # Provide a direct, consistent version output
+            result = metrics_collector.get_version()
         elif tool_name == "mysql_ask_question":
             question = tool_input.get("question")
             result = {"answer": f"Natural language question: {question}"}
@@ -118,6 +122,7 @@ Use ONLY the following whitelisted tools:
 - mysql_get_processlist
 - mysql_get_slow_queries
 - mysql_execute_safe_query
+- mysql_get_version
 
 Format tool calls exactly as: [TOOL: tool_name param=value]
 """
@@ -145,15 +150,44 @@ Format tool calls exactly as: [TOOL: tool_name param=value]
         initial_text = initial_response.get("message", {}).get("content", "")
         logger.info(f"LLM suggested response: {initial_text[:200]}...")
 
-        # Parse tool calls from the response
+        # Parse tool calls from the response. Support both the explicit
+        # "[TOOL: name params]" format and a fallback bracketed form
+        # "[mysql_get_version]" which some models may emit. Only accept
+        # calls that match the known whitelist to avoid false positives.
+        allowed_tool_names = {
+            "mysql_get_uptime",
+            "mysql_get_thread_stats",
+            "mysql_get_qps",
+            "mysql_get_replication_status",
+            "mysql_get_node_type",
+            "mysql_get_replication_topology",
+            "mysql_get_processlist",
+            "mysql_get_slow_queries",
+            "mysql_execute_safe_query",
+            "mysql_get_version",
+        }
+
         tool_calls = []
         for line in initial_text.splitlines():
-            if "[TOOL:" in line:
-                start = line.find("[TOOL:") + 6
-                end = line.find("]", start)
-                if end > start:
-                    tool_call = line[start:end].strip()
-                    tool_calls.append(tool_call)
+            # Try explicit TOOL marker first: [TOOL: name param=val]
+            m = re.search(r"\[TOOL:\s*([^\]]+)\]", line)
+            if m:
+                tool_call = m.group(1).strip()
+                # Validate the tool name is allowed
+                parts = tool_call.split()
+                if parts and parts[0] in allowed_tool_names:
+                    if tool_call not in tool_calls:
+                        tool_calls.append(tool_call)
+                continue
+
+            # Fallback: bracketed bare tool name like [mysql_get_version]
+            m2 = re.search(r"\[\s*([a-zA-Z_][\w]*)\s*(?:\([^\)]*\))?\s*\]", line)
+            if m2:
+                name = m2.group(1).strip()
+                if name in allowed_tool_names:
+                    # Keep only the name (no params) for execution
+                    if name not in tool_calls:
+                        tool_calls.append(name)
 
         # Execute identified tools
         tool_results = {}
@@ -181,11 +215,14 @@ Format tool calls exactly as: [TOOL: tool_name param=value]
             # Notify client tools executed
             yield f"data: {json.dumps({'type': 'tool_execution', 'tools': list(tool_results.keys())})}\n\n"
 
-            # Synthesize final answer using tool results
+            # Synthesize final answer using tool results. Do NOT let the LLM reuse
+            # its initial (potentially speculative) answer — force it to use the
+            # real tool outputs by providing an explicit system instruction and
+            # the tools summary.
             tools_summary = json.dumps(tool_results, indent=2)
             synthesis_messages = messages_for_ollama + [
-                {"role": "assistant", "content": initial_text},
-                {"role": "user", "content": f"Here are the actual database query results:\n\n{tools_summary}\n\nPlease provide a concise answer using the real data."}
+                {"role": "system", "content": "Ignore any previous assistant outputs. Use the following actual tool outputs exactly when composing your answer."},
+                {"role": "user", "content": f"Here are the actual database query results:\n\n{tools_summary}\n\nPlease provide a concise answer using the real data and cite the exact fields/values used."}
             ]
 
             final_response = ollama.chat(

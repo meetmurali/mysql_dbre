@@ -126,6 +126,9 @@ class MySQLDBREConnection:
 
         logger.debug(f"Executing query: {sql[:100]}...")
 
+        # Debug: log the full SQL for troubleshooting
+        logger.debug(f"Full SQL: {sql}")
+
         # Use pooled connection if available to isolate cursors per call
         conn = None
         try:
@@ -142,6 +145,8 @@ class MySQLDBREConnection:
 
             rows = cursor.fetchall()
             columns = [desc[0] for desc in cursor.description] if cursor.description else []
+            logger.debug(f"Query columns: {columns}")
+            logger.debug(f"First row (if any): {rows[0] if rows else None}")
             row_count = cursor.rowcount
 
             cursor.close()
@@ -150,6 +155,10 @@ class MySQLDBREConnection:
                 "columns": columns,
                 "rows": rows,
                 "row_count": row_count,
+                **({
+                    "debug_sql": sql,
+                    "debug_first_row": rows[0] if rows else None,
+                } if os.getenv("MYSQL_AGENT_DEBUG", "False").lower() == "true" else {}),
             }
 
         except Error as e:
@@ -200,7 +209,23 @@ class MySQLMetricsCollector:
         """Get server uptime in human-readable format."""
         result = self.conn.execute_safe_query(query_name="uptime")
         if result["rows"]:
-            uptime_seconds = int(result["rows"][0].get("Value", 0))
+            row = result["rows"][0]
+
+            # Try to find a numeric uptime value in the returned row.
+            uptime_seconds = None
+            # Common column names: 'Value' (SHOW), 'VARIABLE_VALUE', 'uptime' (SELECT @@GLOBAL.uptime)
+            for key, val in row.items():
+                if val is None:
+                    continue
+                try:
+                    uptime_seconds = int(float(val))
+                    break
+                except Exception:
+                    continue
+
+            if uptime_seconds is None:
+                return {"error": "Could not parse uptime from database response", "raw_row": row}
+
             days = uptime_seconds // 86400
             hours = (uptime_seconds % 86400) // 3600
             minutes = (uptime_seconds % 3600) // 60
@@ -208,26 +233,50 @@ class MySQLMetricsCollector:
                 "uptime_seconds": uptime_seconds,
                 "uptime_formatted": f"{days}d {hours}h {minutes}m",
             }
+
         return {"error": "Could not retrieve uptime"}
 
     def get_thread_stats(self) -> Dict[str, Any]:
         """Get comprehensive thread statistics."""
         stats = {}
-
         # Running threads
         result = self.conn.execute_safe_query(query_name="thread_count")
         if result["rows"]:
-            stats["threads_running"] = int(result["rows"][0].get("Value", 0))
+            row = result["rows"][0]
+            val = None
+            for v in row.values():
+                try:
+                    val = int(float(v))
+                    break
+                except Exception:
+                    continue
+            stats["threads_running"] = val or 0
 
         # Connected threads
         result = self.conn.execute_safe_query(query_name="active_connections")
         if result["rows"]:
-            stats["threads_connected"] = int(result["rows"][0].get("Value", 0))
+            row = result["rows"][0]
+            val = None
+            for v in row.values():
+                try:
+                    val = int(float(v))
+                    break
+                except Exception:
+                    continue
+            stats["threads_connected"] = val or 0
 
         # Max connections
         result = self.conn.execute_safe_query(query_name="max_connections")
         if result["rows"]:
-            stats["max_connections"] = int(result["rows"][0].get("Value", 0))
+            row = result["rows"][0]
+            val = None
+            for v in row.values():
+                try:
+                    val = int(float(v))
+                    break
+                except Exception:
+                    continue
+            stats["max_connections"] = val or 0
 
         return stats
 
@@ -235,12 +284,31 @@ class MySQLMetricsCollector:
         """Get queries per second statistics."""
         result = self.conn.execute_safe_query(query_name="qps")
         if result["rows"]:
-            questions = int(result["rows"][0].get("Value", 0))
+            row = result["rows"][0]
+            questions = None
+            for v in row.values():
+                try:
+                    questions = int(float(v))
+                    break
+                except Exception:
+                    continue
+            if questions is None:
+                return {"error": "Could not parse total queries", "raw_row": row}
             return {
                 "total_queries": questions,
                 "note": "QPS requires calculating questions/time. Use get_uptime() for time.",
             }
         return {"error": "Could not retrieve QPS stats"}
+
+    def get_version(self) -> Dict[str, Any]:
+        """Get MySQL server version."""
+        result = self.conn.execute_safe_query(query_name="version")
+        if result["rows"]:
+            row = result["rows"][0]
+            for v in row.values():
+                if v is not None:
+                    return {"version": str(v)}
+        return {"error": "Could not retrieve version"}
 
     def get_replication_status(self) -> Dict[str, Any]:
         """Get replication status, handling different MySQL versions."""

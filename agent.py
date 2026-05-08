@@ -111,6 +111,9 @@ If you don't have access to certain information, clearly state that.
             data["qps"] = self.metrics.get_qps_stats()
             data["uptime"] = self.metrics.get_uptime()  # Need this for QPS calculation
 
+        if any(word in question_lower for word in ["version", "server version", "mysql version"]):
+            data["version"] = self.metrics.get_version()
+
         if any(word in question_lower for word in ["replication", "replica", "slave", "lag", "behind"]):
             data["replication"] = self.metrics.get_replication_status()
 
