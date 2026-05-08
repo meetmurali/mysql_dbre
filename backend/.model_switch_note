@@ -1,0 +1,2 @@
+Switched OLLAMA_MODEL to llama3.2:latest by automation.
+If you want to revert, set `OLLAMA_MODEL` in `backend/main.py` or export `OLLAMA_MODEL` in your environment.

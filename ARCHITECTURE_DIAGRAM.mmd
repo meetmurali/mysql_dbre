@@ -1,0 +1,20 @@
+graph TB
+  subgraph Frontend
+    FE[React + Vite\nfrontend/src] -->|SSE / REST| API[FastAPI /api/chat]
+    Browser[Browser UI] --> FE
+  end
+
+  subgraph Backend
+    API --> BackendMain[backend/main.py\nFastAPI + SSE handler]
+    BackendMain --> Orchestrator[LLM Planner & Tool Orchestrator]
+    Orchestrator --> Ollama[Ollama LLM\nllama3.2:latest @ 127.0.0.1:11434]
+    Orchestrator --> Tools[MCP Tools Interface\nmysql_* tools]
+    Tools --> MetricsCollector[MySQLMetricsCollector\ndatabase.py]
+    Tools --> Queries[queries.py\nwhitelisted SQL templates]
+    BackendMain --> MCP[mcp_server.py\nMCP tool server]
+  end
+
+  MetricsCollector --> MySQL[MySQL DB\nlocalhost:3306]
+
+  classDef comp fill:#f9f,stroke:#333,stroke-width:1px;
+  class Frontend,Backend comp

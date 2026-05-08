@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/murali/Downloads/**)",
+      "Bash(curl -L --max-redirs 10 -o mysql-8.0.36-macos13-arm64.dmg \"https://cdn.mysql.com//Downloads/MySQL-8.0/mysql-8.0.36-macos13-arm64.dmg\")",
+      "Bash(export PATH=\"/opt/homebrew/opt/mysql@8.0/bin:$PATH\")",
+      "Bash(mysql -u dbre_agent -pDBREAgentPass123! -e \"SELECT VERSION\\(\\) as version, NOW\\(\\) as current_time, USER\\(\\) as user\")",
+      "Bash(mysql -u dbre_agent -pDBREAgentPass123! -e \"SELECT VERSION\\(\\) as version, NOW\\(\\) as db_time, USER\\(\\) as db_user\")",
+      "Bash(python main.py)",
+      "Bash(ls -la /opt/homebrew/bin/python*)",
+      "Bash(python3:*)",
+      "Bash(pip3 install:*)",
+      "Bash(ls /opt/homebrew/bin/python*)",
+      "Bash(ls /usr/local/bin/python*)",
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
+      "Bash(brew install:*)",
+      "Bash(python3.11 --version)",
+      "Bash(python3.11 -m pip install -r /Users/murali/Downloads/mysql_agent/requirements.txt)",
+      "Bash(python3.11 /Users/murali/Downloads/mysql_agent/main.py)",
+      "Bash(timeout 5 python3.11 /Users/murali/Downloads/mysql_agent/mcp_server.py)",
+      "Bash(./install_mcp.sh:*)",
+      "Bash(mysql --version)",
+      "Bash(mysql:*)",
+      "Bash(sudo mysql:*)",
+      "Bash(mysqld:*)",
+      "Bash(mysqld_safe:*)"
+    ]
+  }
+}

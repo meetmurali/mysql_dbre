@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Prose styling for markdown */
+.prose {
+  @apply text-base;
+}
+
+.prose h1, .prose h2, .prose h3 {
+  @apply font-bold;
+}
+
+.prose code {
+  @apply bg-opacity-20 bg-gray-800 px-1 py-0.5 rounded font-mono text-sm;
+}
+
+.prose pre {
+  @apply bg-opacity-20 bg-gray-800 p-2 rounded overflow-x-auto;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}

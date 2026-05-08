@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "mysql-dbre-agent": {
+      "command": "python",
+      "args": [
+        "/Users/murali/Downloads/mysql_agent/mcp_server.py"
+      ],
+      "env": {
+        "MYSQL_HOST": "${MYSQL_HOST}",
+        "MYSQL_PORT": "${MYSQL_PORT}",
+        "MYSQL_USER": "${MYSQL_USER}",
+        "MYSQL_PASSWORD": "${MYSQL_PASSWORD}",
+        "MYSQL_DATABASE": "${MYSQL_DATABASE}"
+      },
+      "description": "MySQL DBRE Agent - Read-only database metrics and status"
+    }
+  }
+}
