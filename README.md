@@ -1,146 +1,173 @@
-# MySQL DBRE Agent
+# MySQL DBRE Agent 🛠️
 
-A Database Reliability Engineering agent for MySQL that provides read-only access to database metadata and real-time statistics.
+An AI-powered MySQL Database Reliability Engineering (DBRE) assistant that lets you monitor and analyze your MySQL database health using natural language questions — running entirely on your local machine with no cloud API required.
 
-## Features
+---
 
-- **Read-only operations only** - Strictly prohibited from DELETE, DROP, UPDATE, INSERT, etc.
-- Real-time metrics: QPS, thread counts, uptime
-- Replication status: lag detection, topology mapping
-- Node identification: Primary vs Read Replica
+## 🏗️ Architecture Overview
 
-## Requirements
-
-- Python 3.11+ (for MCP server support)
-- MySQL 8.0+ (5.7 compatible with older syntax)
-
-## Setup
-
-1. **Install dependencies:**
-```bash
-# Use Python 3.11+ for MCP support
-pip3.11 install -r requirements.txt
+```
+User (Browser)
+     ↕
+React + Vite Frontend
+     ↕
+FastAPI Backend  ←→  Ollama (Local LLM: llama3.2)
+     ↕
+MySQL Database
 ```
 
-2. **Configure environment variables in `.env`:**
+---
+
+## ⚙️ Prerequisites
+
+Install the following before proceeding:
+
+| Software | Version | Download |
+|---|---|---|
+| Python | 3.11+ | https://python.org |
+| Node.js + npm | 18+ | https://nodejs.org |
+| Ollama | Latest | https://ollama.com/download |
+| MySQL Server | 5.7+ or 8.0+ | https://dev.mysql.com/downloads |
+
+---
+
+## 🚀 Installation & Setup
+
+### Step 1 — Clone the Repository
+```bash
+git clone https://github.com/meetmurali/MySQL_DBRE.git
+cd MySQL_DBRE
+```
+
+### Step 2 — Install Ollama and Pull the LLM Model
+```bash
+# Download and install Ollama from https://ollama.com/download
+# Then pull the required model:
+ollama pull llama3.2
+```
+
+### Step 3 — Set Up Python Backend
+```bash
+# Create and activate virtual environment
+python3 -m venv venv
+source venv/bin/activate        # Mac/Linux
+# venv\Scripts\activate         # Windows
+
+# Install Python dependencies
+pip install -r requirements.txt
+```
+
+### Step 4 — Set Up the Frontend
+```bash
+cd frontend
+npm install
+cd ..
+```
+
+### Step 5 — Create the MySQL Read-Only User
+Run this SQL script on your MySQL server to create the required `dbre_agent` user:
+```bash
+mysql -u root -p < setup_mysql_user.sql
+```
+
+### Step 6 — Configure Environment Variables
+Create a `.env` file in the root directory:
+```bash
+cp .env.example .env
+```
+Then edit `.env` with your actual values:
 ```
 MYSQL_HOST=localhost
 MYSQL_PORT=3306
 MYSQL_USER=dbre_agent
-MYSQL_PASSWORD=your_password
-MYSQL_DATABASE=information_schema
+MYSQL_PASSWORD=your_password_here
+MYSQL_DATABASE=your_database_name
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=llama3.2:latest
 ```
 
-3. **Run the agent:**
-```bash
-python3.11 main.py
-```
-
-## Safety
-
-This agent only runs whitelisted read-only queries. Any attempt to execute destructive operations will be blocked.
+> ⚠️ Never commit your `.env` file to source control. It is already in `.gitignore`.
 
 ---
 
-## Running as an MCP Server
+## ▶️ Running the Application
 
-The MySQL DBRE Agent can also run as an MCP (Model Context Protocol) server, allowing Claude Code to use it as a tool.
-
-### MCP Server Tools
-
-When running as an MCP server, the following tools are available:
-
-| Tool | Description |
-|------|-------------|
-| `mysql_get_uptime` | Server uptime in seconds and human-readable format |
-| `mysql_get_thread_stats` | Thread statistics (running, connected, max) |
-| `mysql_get_qps` | Queries per second metrics |
-| `mysql_get_replication_status` | Replication lag, IO/SQL thread status |
-| `mysql_get_node_type` | Primary vs Replica identification |
-| `mysql_get_replication_topology` | Full replication topology |
-| `mysql_get_processlist` | Active processes and queries |
-| `mysql_get_slow_queries` | Count of slow queries |
-| `mysql_execute_safe_query` | Execute predefined whitelisted query |
-| `mysql_ask_question` | Natural language questions about MySQL |
-
-### Setup for Claude Code
-
-#### Option 1: Using the Install Script (Recommended)
-
+### Start the Backend
 ```bash
-# Ensure dependencies are installed with Python 3.11+
-pip3.11 install -r requirements.txt
-
-# Run the install script
-./install_mcp.sh
+# Make sure your virtual environment is active
+source venv/bin/activate
+uvicorn backend.main:app --reload --port 8000
 ```
 
-This will create or update your Claude Code settings file with the MCP server configuration.
-
-#### Option 2: Manual Configuration
-
-1. **Install MCP SDK (requires Python 3.11+):**
+### Start the Frontend (in a new terminal)
 ```bash
-pip3.11 install mcp>=1.0.0
+cd frontend
+npm run dev
 ```
 
-2. **Configure Claude Code settings:**
-
-Create or edit your Claude Code settings file:
-- **macOS**: `~/Library/Application Support/Claude/settings.json`
-- **Linux**: `~/.config/claude/settings.json`
-
-```json
-{
-  "mcpServers": {
-    "mysql-dbre-agent": {
-      "command": "python3.11",
-      "args": ["/full/path/to/mysql_agent/mcp_server.py"],
-      "env": {
-        "MYSQL_HOST": "localhost",
-        "MYSQL_PORT": "3306",
-        "MYSQL_USER": "dbre_agent",
-        "MYSQL_PASSWORD": "your_password",
-        "MYSQL_DATABASE": "information_schema"
-      }
-    }
-  }
-}
+### Open in Browser
+```
+http://localhost:5173
 ```
 
-Or use environment variable substitution:
-```json
-{
-  "mcpServers": {
-    "mysql-dbre-agent": {
-      "command": "python3.11",
-      "args": ["/full/path/to/mysql_agent/mcp_server.py"],
-      "env": {
-        "MYSQL_HOST": "${MYSQL_HOST}",
-        "MYSQL_PORT": "${MYSQL_PORT}",
-        "MYSQL_USER": "${MYSQL_USER}",
-        "MYSQL_PASSWORD": "${MYSQL_PASSWORD}",
-        "MYSQL_DATABASE": "${MYSQL_DATABASE}"
-      }
-    }
-  }
-}
+---
+
+## 💬 Example Questions You Can Ask
+
+- *"What is the current replication lag?"*
+- *"Show me the top 20 active processes"*
+- *"Are there any slow queries running?"*
+- *"What is the server uptime?"*
+- *"What is the replication topology?"*
+
+---
+
+## 🔒 Security & Safety
+
+- **Read-only mode strictly enforced** — no writes, deletes, or schema changes possible
+- **Non-blocking queries only** — zero performance impact on your database
+- **30-second query timeout** — automatically aborts and alerts if a query hangs
+- **Whitelisted queries only** — no arbitrary SQL execution
+- **Least-privilege DB user** — `dbre_agent` has only SELECT, SHOW, PROCESS, REPLICATION CLIENT privileges
+
+---
+
+## 🔄 Switching LLM Models
+
+You can use any Ollama-supported model. To switch:
+```bash
+# Pull a different model
+ollama pull mistral
+# or
+ollama pull llama3.2
+
+# Update your .env
+OLLAMA_MODEL=mistral:latest
 ```
 
-3. **Alternative: Set up via `.env` file:**
+---
 
-The MCP server will automatically load environment variables from `.env` file, so you can also just ensure your `.env` file is configured and the MCP server will read from it.
+## 📁 Project Structure
 
-4. **Restart Claude Code** to load the new MCP server.
+```
+MySQL_DBRE/
+├── backend/
+│   └── main.py          # FastAPI backend + tool orchestration
+├── frontend/            # React + Vite UI
+├── agent.py             # Agent logic + LLM client
+├── database.py          # MySQL connection + query execution
+├── queries.py           # Whitelisted SQL query templates
+├── mcp_server.py        # Optional MCP server for Claude Code
+├── example_usage.py     # Local testing harness
+├── main.py              # Interactive CLI
+├── setup_mysql_user.sql # SQL to create read-only DB user
+├── requirements.txt     # Python dependencies
+├── .env.example         # Environment variable template
+└── README.md            # This file
+```
 
-### Testing the MCP Server
+---
 
-Once configured, you can ask Claude questions like:
+## 🤝 Contributing
 
-- "What is the replication lag on my MySQL server?"
-- "How many threads are currently running?"
-- "Is this MySQL node a primary or replica?"
-- "Show me the replication topology"
-- "What is the QPS on the database?"
-
-Claude will automatically use the appropriate MCP tools to answer these questions.
+Pull requests are welcome! Please ensure any new queries added follow the read-only and non-blocking guidelines in `queries.py`.
